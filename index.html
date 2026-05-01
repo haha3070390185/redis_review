@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Redis Review - 轻量Redis可视化工具</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    /* 顶部连接栏 */
+    .header {
+      background-color: #fff;
+      padding: 12px 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: nowrap;
+      min-height: 60px;
+    }
+    
+    .logo {
+      font-size: 18px;
+      font-weight: bold;
+      color: #d9232e;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .connection-form {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      flex: 1;
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    
+    .form-group label {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+    }
+    
+    .form-group input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 100px;
+      min-width: 80px;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: #d9232e;
+      box-shadow: 0 0 0 2px rgba(217, 35, 46, 0.1);
+    }
+    
+    .btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-primary {
+      background-color: #d9232e;
+      color: #fff;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background-color: #c41e28;
+    }
+    
+    .btn-primary:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background-color: #666;
+      color: #fff;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #555;
+    }
+    
+    .btn-refresh {
+      padding: 8px 15px;
+    }
+    
+    .connection-status {
+      margin-left: auto;
+      font-size: 14px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .connection-status::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .status-connected {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-connected::before {
+      background-color: #4caf50;
+    }
+    
+    .status-disconnected {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    
+    .status-disconnected::before {
+      background-color: #f44336;
+    }
+    
+    .status-connecting {
+      background-color: #fff3e0;
+      color: #ef6c00;
+    }
+    
+    .status-connecting::before {
+      background-color: #ff9800;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* 主内容区 */
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+    
+    /* 左侧Keys列表 */
+    .keys-panel {
+      width: 300px;
+      min-width: 250px;
+      max-width: 400px;
+      background-color: #fff;
+      border-right: 1px solid #eee;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    
+    .keys-header {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    
+    .keys-header input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 0;
+    }
+    
+    .keys-header input:focus {
+      outline: none;
+      border-color: #d9232e;
+      box-shadow: 0 0 0 2px rgba(217, 35, 46, 0.1);
+    }
+    
+    .keys-list {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    
+    .keys-count {
+      padding: 8px 15px;
+      background-color: #fafafa;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+      color: #666;
+      flex-shrink: 0;
+    }
+    
+    .key-item {
+      padding: 12px 15px;
+      border-bottom: 1px solid #f5f5f5;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .key-item:hover {
+      background-color: #f9f9f9;
+    }
+    
+    .key-item.active {
+      background-color: #fff3f3;
+      border-left: 3px solid #d9232e;
+      padding-left: 12px;
+    }
+    
+    .key-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+    
+    .key-type {
+      font-size: 12px;
+      color: #999;
+      margin-top: 6px;
+    }
+    
+    .key-type-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+    
+    .type-string { background-color: #e3f2fd; color: #1565c0; }
+    .type-hash { background-color: #fce4ec; color: #c2185b; }
+    .type-list { background-color: #fff3e0; color: #ef6c00; }
+    .type-set { background-color: #e8f5e9; color: #2e7d32; }
+    .type-zset { background-color: #f3e5f5; color: #7b1fa2; }
+    .type-none { background-color: #f5f5f5; color: #666; }
+    
+    /* 右侧数据展示区 */
+    .data-panel {
+      flex: 1;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+    
+    .data-header {
+      padding: 12px 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      gap: 15px;
+    }
+    
+    .data-header h3 {
+      font-size: 15px;
+      color: #333;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    
+    .data-header-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    
+    .data-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #999;
+      font-size: 16px;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .empty-state svg {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 20px;
+      opacity: 0.3;
+    }
+    
+    .empty-state p {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #aaa;
+    }
+    
+    /* 数据展示样式 */
+    .data-item {
+      margin-bottom: 20px;
+    }
+    
+    .data-label {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .data-value {
+      background-color: #fafafa;
+      padding: 16px 20px;
+      border-radius: 6px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      border: 1px solid #eee;
+    }
+    
+    /* 表格样式 */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      table-layout: fixed;
+    }
+    
+    .data-table th,
+    .data-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .data-table th {
+      background-color: #fafafa;
+      font-weight: 600;
+      color: #333;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .data-table td {
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      word-break: break-all;
+      vertical-align: top;
+    }
+    
+    .data-table tr:hover {
+      background-color: #fafafa;
+    }
+    
+    .data-table th:nth-child(1),
+    .data-table td:nth-child(1) {
+      width: 80px;
+    }
+    
+    .data-table th:nth-child(2),
+    .data-table td:nth-child(2) {
+      width: 150px;
+    }
+    
+    /* 列表样式 */
+    .data-list {
+      list-style: none;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    
+    .data-list li {
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      word-break: break-all;
+      position: relative;
+      padding-left: 36px;
+    }
+    
+    .data-list li:last-child {
+      border-bottom: none;
+    }
+    
+    .data-list li:before {
+      content: "";
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #d9232e;
+    }
+    
+    .data-list li:hover {
+      background-color: #fafafa;
+    }
+    
+    /* 有序列表样式 */
+    .data-list.ordered li:before {
+      content: counter(list-counter);
+      counter-increment: list-counter;
+      background-color: transparent;
+      color: #999;
+      font-size: 12px;
+      width: auto;
+      left: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .data-list.ordered {
+      counter-reset: list-counter;
+    }
+    
+    /* 加载和错误状态 */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #999;
+      gap: 15px;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f0f0f0;
+      border-top-color: #d9232e;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .error {
+      color: #c62828;
+      padding: 20px;
+      background-color: #ffebee;
+      border-radius: 6px;
+      border: 1px solid #ffcdd2;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    
+    .error-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    
+    .error-content {
+      flex: 1;
+    }
+    
+    .error-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .error-message {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    /* Toast 通知 */
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .toast {
+      background-color: #fff;
+      padding: 16px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 300px;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .toast-exit {
+      animation: slideOut 0.3s ease-in forwards;
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+    
+    .toast-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .toast-content {
+      flex: 1;
+    }
+    
+    .toast-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    
+    .toast-message {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.4;
+    }
+    
+    .toast-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .toast-close:hover {
+      color: #666;
+    }
+    
+    .toast-success {
+      border-left: 4px solid #4caf50;
+    }
+    
+    .toast-success .toast-icon,
+    .toast-success .toast-title {
+      color: #2e7d32;
+    }
+    
+    .toast-error {
+      border-left: 4px solid #f44336;
+    }
+    
+    .toast-error .toast-icon,
+    .toast-error .toast-title {
+      color: #c62828;
+    }
+    
+    .toast-warning {
+      border-left: 4px solid #ff9800;
+    }
+    
+    .toast-warning .toast-icon,
+    .toast-warning .toast-title {
+      color: #ef6c00;
+    }
+    
+    .toast-info {
+      border-left: 4px solid #2196f3;
+    }
+    
+    .toast-info .toast-icon,
+    .toast-info .toast-title {
+      color: #1565c0;
+    }
+    
+    /* 滚动条样式 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+    
+    /* 响应式调整 */
+    @media (max-width: 1000px) {
+      .header {
+        padding: 10px 15px;
+        gap: 10px;
+      }
+      
+      .logo {
+        font-size: 16px;
+      }
+      
+      .form-group input {
+        width: 80px;
+        padding: 6px 10px;
+      }
+      
+      .btn {
+        padding: 6px 16px;
+        font-size: 13px;
+        height: 30px;
+      }
+      
+      .connection-status {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+      
+      .keys-panel {
+        width: 250px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- 顶部连接栏 -->
+    <div class="header">
+      <div class="logo">Redis Review</div>
+      
+      <div class="connection-form">
+        <div class="form-group">
+          <label>主机</label>
+          <input type="text" id="host" value="localhost" placeholder="localhost">
+        </div>
+        <div class="form-group">
+          <label>端口</label>
+          <input type="number" id="port" value="6379" placeholder="6379">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="password" placeholder="可选">
+        </div>
+        <div class="form-group">
+          <label>数据库</label>
+          <input type="number" id="db" value="0" placeholder="0">
+        </div>
+        
+        <button class="btn btn-primary" id="connectBtn">连接</button>
+        <button class="btn btn-secondary" id="disconnectBtn" style="display: none;">断开</button>
+      </div>
+      
+      <div class="connection-status status-disconnected" id="connectionStatus">
+        未连接
+      </div>
+    </div>
+    
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 左侧Keys列表 -->
+      <div class="keys-panel">
+        <div class="keys-header">
+          <input type="text" id="keyPattern" value="*" placeholder="搜索Keys (如: user:*)">
+          <button class="btn btn-primary btn-refresh" id="refreshBtn">刷新</button>
+        </div>
+        <div class="keys-count" id="keysCount" style="display: none;">
+          共 <span id="keysCountNum">0</span> 个Key
+        </div>
+        <div class="keys-list" id="keysList">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <p>连接Redis查看数据</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧数据展示区 -->
+      <div class="data-panel">
+        <div class="data-header">
+          <h3 id="dataTitle">数据详情</h3>
+          <div class="data-header-info">
+            <span id="dataType" style="display: none;"></span>
+          </div>
+        </div>
+        <div class="data-content" id="dataContent">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <p>选择一个Key查看数据</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // DOM元素
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const keysList = document.getElementById('keysList');
+    const keysCount = document.getElementById('keysCount');
+    const keysCountNum = document.getElementById('keysCountNum');
+    const dataContent = document.getElementById('dataContent');
+    const dataTitle = document.getElementById('dataTitle');
+    const dataType = document.getElementById('dataType');
+    const keyPattern = document.getElementById('keyPattern');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const toastContainer = document.getElementById('toastContainer');
+    
+    // 连接状态
+    let isConnected = false;
+    let selectedKey = null;
+    let isConnecting = false;
+    
+    // 类型名称映射
+    const typeNames = {
+      'string': '字符串',
+      'hash': '哈希',
+      'list': '列表',
+      'set': '集合',
+      'zset': '有序集合',
+      'none': '不存在'
+    };
+    
+    // 类型徽章样式类
+    const typeClasses = {
+      'string': 'type-string',
+      'hash': 'type-hash',
+      'list': 'type-list',
+      'set': 'type-set',
+      'zset': 'type-zset',
+      'none': 'type-none'
+    };
+    
+    // Toast 图标映射
+    const toastIcons = {
+      'success': '✓',
+      'error': '✕',
+      'warning': '⚠',
+      'info': 'ℹ'
+    };
+    
+    // Toast 标题映射
+    const toastTitles = {
+      'success': '成功',
+      'error': '错误',
+      'warning': '警告',
+      'info': '提示'
+    };
+    
+    // 显示Toast通知
+    function showToast(type, message, duration = 4000) {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `
+        <span class="toast-icon">${toastIcons[type]}</span>
+        <div class="toast-content">
+          <div class="toast-title">${toastTitles[type]}</div>
+          <div class="toast-message">${escapeHtml(message)}</div>
+        </div>
+        <button class="toast-close" onclick="closeToast(this.parentElement)">×</button>
+      `;
+      
+      toastContainer.appendChild(toast);
+      
+      if (duration > 0) {
+        setTimeout(() => {
+          closeToast(toast);
+        }, duration);
+      }
+      
+      return toast;
+    }
+    
+    // 关闭Toast
+    function closeToast(toast) {
+      if (!toast || toast.classList.contains('toast-exit')) return;
+      
+      toast.classList.add('toast-exit');
+      
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.parentElement.removeChild(toast);
+        }
+      }, 300);
+    }
+    
+    // 连接Redis
+    connectBtn.addEventListener('click', async () => {
+      if (isConnecting || isConnected) return;
+      
+      const config = {
+        host: document.getElementById('host').value.trim(),
+        port: parseInt(document.getElementById('port').value) || 6379,
+        password: document.getElementById('password').value || undefined,
+        db: parseInt(document.getElementById('db').value) || 0
+      };
+      
+      if (!config.host) {
+        showToast('warning', '请输入主机地址');
+        return;
+      }
+      
+      isConnecting = true;
+      updateConnectionStatus('connecting');
+      connectBtn.disabled = true;
+      
+      try {
+        const result = await window.electronAPI.redisConnect(config);
+        
+        if (result.success) {
+          isConnected = true;
+          updateConnectionStatus('connected');
+          showToast('success', `成功连接到 ${config.host}:${config.port} (数据库: ${config.db})`);
+          await loadKeys();
+        } else {
+          isConnected = false;
+          updateConnectionStatus('disconnected');
+          
+          const friendlyMessage = getFriendlyErrorMessage(result.message, config);
+          showToast('error', friendlyMessage);
+        }
+      } catch (error) {
+        isConnected = false;
+        updateConnectionStatus('disconnected');
+        
+        const friendlyMessage = getFriendlyErrorMessage(error.message, config);
+        showToast('error', friendlyMessage);
+      } finally {
+        isConnecting = false;
+        connectBtn.disabled = false;
+      }
+    });
+    
+    // 获取友好的错误消息
+    function getFriendlyErrorMessage(message, config) {
+      const lowerMsg = message.toLowerCase();
+      
+      if (lowerMsg.includes('connect') && lowerMsg.includes('refused')) {
+        return `无法连接到Redis服务器，请检查：\n1. Redis服务器是否已启动\n2. 地址 ${config.host}:${config.port} 是否正确\n3. 防火墙是否阻止了连接`;
+      }
+      
+      if (lowerMsg.includes('timeout') || lowerMsg.includes('timed out')) {
+        return `连接超时，请检查：\n1. 网络是否正常\n2. Redis服务器是否响应\n3. 地址 ${config.host}:${config.port} 是否可达`;
+      }
+      
+      if (lowerMsg.includes('password') || lowerMsg.includes('auth') || lowerMsg.includes('noauth')) {
+        return `密码验证失败，请检查：\n1. 密码是否正确\n2. Redis是否设置了密码`;
+      }
+      
+      if (lowerMsg.includes('invalid') || lowerMsg.includes('db')) {
+        return `数据库索引无效，请输入有效的数据库编号（通常为 0-15）`;
+      }
+      
+      if (lowerMsg.includes('econnreset') || lowerMsg.includes('connection reset')) {
+        return `连接被重置，请检查Redis服务器状态`;
+      }
+      
+      return `连接失败: ${message}`;
+    }
+    
+    // 断开连接
+    disconnectBtn.addEventListener('click', async () => {
+      try {
+        await window.electronAPI.redisDisconnect();
+        isConnected = false;
+        updateConnectionStatus('disconnected');
+        clearKeys();
+        clearData();
+        showToast('info', '已断开与Redis服务器的连接');
+      } catch (error) {
+        showToast('error', `断开连接时出错: ${error.message}`);
+      }
+    });
+    
+    // 刷新Keys
+    refreshBtn.addEventListener('click', async () => {
+      if (!isConnected) {
+        showToast('warning', '请先连接到Redis服务器');
+        return;
+      }
+      
+      await loadKeys();
+      showToast('info', 'Keys列表已刷新');
+    });
+    
+    // 搜索Keys回车触发
+    keyPattern.addEventListener('keypress', async (e) => {
+      if (e.key === 'Enter' && isConnected) {
+        await loadKeys();
+        showToast('info', 'Keys列表已刷新');
+      }
+    });
+    
+    // 更新连接状态UI
+    function updateConnectionStatus(status) {
+      switch (status) {
+        case 'connecting':
+          connectionStatus.textContent = '连接中...';
+          connectionStatus.className = 'connection-status status-connecting';
+          connectBtn.disabled = true;
+          break;
+          
+        case 'connected':
+          connectionStatus.textContent = '已连接';
+          connectionStatus.className = 'connection-status status-connected';
+          connectBtn.style.display = 'none';
+          disconnectBtn.style.display = 'inline-block';
+          disconnectBtn.disabled = false;
+          break;
+          
+        case 'disconnected':
+        default:
+          connectionStatus.textContent = '未连接';
+          connectionStatus.className = 'connection-status status-disconnected';
+          connectBtn.style.display = 'inline-block';
+          connectBtn.disabled = false;
+          disconnectBtn.style.display = 'none';
+          break;
+      }
+    }
+    
+    // 加载Keys列表
+    async function loadKeys() {
+      if (!isConnected) return;
+      
+      keysList.innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <span>加载Keys中...</span>
+        </div>
+      `;
+      
+      try {
+        const pattern = keyPattern.value.trim() || '*';
+        const result = await window.electronAPI.redisGetKeys(pattern);
+        
+        if (result.success) {
+          renderKeys(result.data);
+        } else {
+          renderKeysError(result.message);
+        }
+      } catch (error) {
+        renderKeysError(error.message);
+      }
+    }
+    
+    // 渲染Keys列表
+    function renderKeys(keys) {
+      if (keys.length === 0) {
+        keysCount.style.display = 'none';
+        keysList.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="16"></line>
+              <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+            <p>没有找到Keys</p>
+            <p>尝试调整搜索模式</p>
+          </div>
+        `;
+        return;
+      }
+      
+      keysCount.style.display = 'block';
+      keysCountNum.textContent = keys.length;
+      
+      keysList.innerHTML = '';
+      
+      keys.sort();
+      
+      keys.forEach(async (key) => {
+        const typeResult = await window.electronAPI.redisGetType(key);
+        const type = typeResult.success ? typeResult.data : 'none';
+        
+        const keyItem = document.createElement('div');
+        keyItem.className = 'key-item';
+        keyItem.dataset.key = key;
+        keyItem.dataset.type = type;
+        
+        if (key === selectedKey) {
+          keyItem.classList.add('active');
+        }
+        
+        keyItem.innerHTML = `
+          <div class="key-name">${escapeHtml(key)}</div>
+          <div class="key-type">
+            <span class="key-type-badge ${typeClasses[type] || 'type-none'}">${typeNames[type] || type}</span>
+          </div>
+        `;
+        
+        keyItem.addEventListener('click', () => {
+          selectKey(key, type);
+        });
+        
+        keysList.appendChild(keyItem);
+      });
+    }
+    
+    // 渲染Keys错误
+    function renderKeysError(message) {
+      keysCount.style.display = 'none';
+      keysList.innerHTML = `
+        <div class="error">
+          <span class="error-icon">✕</span>
+          <div class="error-content">
+            <div class="error-title">加载Keys失败</div>
+            <div class="error-message">${escapeHtml(message)}</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // 清空Keys列表
+    function clearKeys() {
+      keysCount.style.display = 'none';
+      selectedKey = null;
+      keysList.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <p>连接Redis查看数据</p>
+        </div>
+      `;
+    }
+    
+    // 选择Key
+    async function selectKey(key, type) {
+      document.querySelectorAll('.key-item').forEach(item => {
+        if (item.dataset.key === key) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+      
+      selectedKey = key;
+      dataTitle.textContent = `Key: ${key}`;
+      dataType.style.display = 'inline-block';
+      dataType.innerHTML = `<span class="key-type-badge ${typeClasses[type] || 'type-none'}">${typeNames[type] || type}</span>`;
+      
+      await loadData(key, type);
+    }
+    
+    // 加载数据
+    async function loadData(key, type) {
+      dataContent.innerHTML = `
+        <div class="loading">
+          <div class="loading-spinner"></div>
+          <span>加载数据中...</span>
+        </div>
+      `;
+      
+      try {
+        let result;
+        
+        switch (type) {
+          case 'string':
+            result = await window.electronAPI.redisGetString(key);
+            break;
+          case 'hash':
+            result = await window.electronAPI.redisGetHash(key);
+            break;
+          case 'list':
+            result = await window.electronAPI.redisGetList(key);
+            break;
+          case 'set':
+            result = await window.electronAPI.redisGetSet(key);
+            break;
+          case 'zset':
+            result = await window.electronAPI.redisGetZset(key);
+            break;
+          default:
+            result = { success: false, message: '不支持的数据类型' };
+        }
+        
+        if (result.success) {
+          renderData(key, type, result.data);
+        } else {
+          renderDataError(result.message);
+        }
+      } catch (error) {
+        renderDataError(error.message);
+      }
+    }
+    
+    // 渲染数据
+    function renderData(key, type, data) {
+      let html = '';
+      
+      switch (type) {
+        case 'string':
+          html = `
+            <div class="data-item">
+              <div class="data-label">值</div>
+              <div class="data-value">${escapeHtml(data === null ? '(nil)' : String(data))}</div>
+            </div>
+          `;
+          break;
+          
+        case 'hash':
+          if (Object.keys(data).length === 0) {
+            html = `
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <p>哈希为空</p>
+              </div>
+            `;
+          } else {
+            html = `
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: auto;">字段</th>
+                    <th style="width: auto;">值</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.entries(data).map(([field, value]) => `
+                    <tr>
+                      <td>${escapeHtml(field)}</td>
+                      <td>${escapeHtml(String(value))}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+          break;
+          
+        case 'list':
+          if (data.length === 0) {
+            html = `
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <p>列表为空</p>
+              </div>
+            `;
+          } else {
+            html = `
+              <ol class="data-list ordered">
+                ${data.map((item, index) => `
+                  <li data-index="${index}">${escapeHtml(item)}</li>
+                `).join('')}
+              </ol>
+            `;
+          }
+          break;
+          
+        case 'set':
+          if (data.length === 0) {
+            html = `
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="8" y1="12" x2="12" y2="16"></line>
+                  <line x1="12" y1="8" x2="12" y2="16"></line>
+                </svg>
+                <p>集合为空</p>
+              </div>
+            `;
+          } else {
+            html = `
+              <ul class="data-list">
+                ${data.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+              </ul>
+            `;
+          }
+          break;
+          
+        case 'zset':
+          if (data.length === 0) {
+            html = `
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                <p>有序集合为空</p>
+              </div>
+            `;
+          } else {
+            html = `
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>排名</th>
+                    <th>成员</th>
+                    <th>分数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${data.map((item, index) => `
+                    <tr>
+                      <td>${index}</td>
+                      <td>${escapeHtml(item.member)}</td>
+                      <td>${escapeHtml(item.score)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+          break;
+          
+        default:
+          html = `
+            <div class="error">
+              <span class="error-icon">✕</span>
+              <div class="error-content">
+                <div class="error-title">不支持的数据类型</div>
+                <div class="error-message">当前版本不支持查看 ${escapeHtml(type)} 类型的数据</div>
+              </div>
+            </div>
+          `;
+      }
+      
+      dataContent.innerHTML = html;
+    }
+    
+    // 渲染数据错误
+    function renderDataError(message) {
+      dataContent.innerHTML = `
+        <div class="error">
+          <span class="error-icon">✕</span>
+          <div class="error-content">
+            <div class="error-title">加载数据失败</div>
+            <div class="error-message">${escapeHtml(message)}</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // 清空数据
+    function clearData() {
+      dataTitle.textContent = '数据详情';
+      dataType.style.display = 'none';
+      dataContent.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <p>选择一个Key查看数据</p>
+        </div>
+      `;
+    }
+    
+    // HTML转义
+    function escapeHtml(text) {
+      if (text === null || text === undefined) {
+        return '';
+      }
+      const div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

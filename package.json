@@ -1,0 +1,18 @@
+{
+  "name": "redis_review",
+  "version": "1.0.0",
+  "description": "轻量快捷的redis可视化工具",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --inspect=5858"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  },
+  "dependencies": {
+    "ioredis": "^5.3.2"
+  }
+}
